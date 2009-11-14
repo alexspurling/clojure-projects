@@ -2,9 +2,6 @@
         '(java.awt Color Dimension Graphics)
         '(java.awt.image BufferedImage))
 
-;; Maximum number of iterations of the mandelbrot formula to make
-(def max-iters 50)
-
 ;; Applies the mandelbrot formula
 (defn mandel [[xcoord ycoord]]
   [(- (* xcoord xcoord) (* ycoord ycoord)) (* 2 xcoord ycoord)])
@@ -16,7 +13,6 @@
   (iterate
     #(vec (map + (mandel %) [xcoord ycoord]))
     [xcoord ycoord]))
-
 
 ;; Colours used to draw the set
 (def grad-colour-a [255, 255, 0])
@@ -33,7 +29,7 @@
 (defn iter-colour 
   "Returns the colour needed to paint a point with the given number
   of iterations"
-  [num-iters]
+  [num-iters max-iters]
   (grad-colour grad-colour-a grad-colour-b
     (/ (double num-iters) max-iters)))
 
@@ -45,61 +41,65 @@
   is within the mandelbrot set, black is returned. Otherwise, a colour within
   a gradient is given based on the number of iterations of the mandelbrot set
   that have been evaluated."
-  [[xcoord ycoord]]
+  [[xcoord ycoord] max-iters]
   (let [num-iters (count (take max-iters (take-while #(<= (mag %) 4) (mandelset xcoord ycoord))))]
     (if (= max-iters num-iters)
       set-colour
-      (iter-colour num-iters))))
-
-
-;; Size of the canvas in pixels
-(def width 600)
-(def height 500)
-
-;; Coordinates of top left pixel in the complex plane
-(def x-coord-start -2)
-(def y-coord-start -1.25)
-
-;; Size of the x and y dimensions in the complex plane
-(def x-coord-size 3)
-(def y-coord-size 2.5)
+      (iter-colour num-iters max-iters))))
 
 (defn get-coord 
   "Returns the coordinates of the given pixel in the complex plane"
-  [x y]
-  [(+ x-coord-start (* (/ x width) x-coord-size))
-   (+ y-coord-start (* (/ y height) y-coord-size))])
+  [x y xstart ystart xsize ysize width height]
+  [(+ xstart (* (/ x width) xsize))
+   (+ ystart (* (/ y height) ysize))])
 
-(def pixel-colours
-  (for [x (range (inc width)) y (range (inc height))]
-    (coord-colour (get-coord x y))))
-
-(def img (BufferedImage. width height (BufferedImage/TYPE_INT_RGB)))
-(def wr (.getRaster img))
-
-(defn draw-image [graphics]
-  (.drawImage graphics img 0 0 (Color/red) nil))
-  
-(def panel (doto (proxy [JPanel] [] (paint [g] (draw-image g)))))
-
-;; Returns a sequence of vectors representing the pixel coordinates
-(def pixels
+(defn get-pixels [width height]
+  "Returns a sequence of vectors representing pixels in a grid of
+  the given width and height"
   (for [y (range height) x (range width)]
      [x y]))
 
-(defn render[] 
-  (time (dorun (pmap 
-    (fn [pixel] 
-      (let [[x y] pixel] 
-        (.setPixel wr x y (int-array (coord-colour (get-coord (double x) (double y))))))) pixels)))
-  (.repaint panel))
 
-(let [frame (JFrame.)]
-    (.setPreferredSize panel (Dimension. width height))
-    (doto frame 
-      (.add panel)
-      .pack
-      (.setLocationRelativeTo nil)
-      .show))
+(defn render [xstart ystart xsize ysize width height max-iters wr]
+  (dorun
+    (pmap (fn [pixel]
+            (let [[x y] pixel]
+              (.setPixel wr x y
+              (int-array (coord-colour
+                (get-coord (double x) (double y) xstart ystart xsize ysize width height)
+                max-iters)))))
+           (get-pixels width height))))
 
-(future (render))
+
+(defn get-img [width height]
+  (BufferedImage. width height (BufferedImage/TYPE_INT_RGB)))
+
+(defn get-panel [width height img]
+  (proxy [JPanel] [] (paint [g] (.drawImage g img 0 0 (Color/red) nil))))
+
+(defn construct-frame [width height panel]
+  "Creates and displays a JFrame of the given dimensions with
+  the panel added to it"
+  (let [frame (JFrame.)]
+      (.setPreferredSize panel (Dimension. width height))
+      (doto frame
+        (.add panel)
+        .pack
+        (.setLocationRelativeTo nil)
+        .show)))
+
+(defn mandelbrot [xstart ystart xsize ysize width height max-iters]
+  "Returns a function to render the mandelbrot set with the
+  given parameters on a frame"
+  (let [img (get-img width height)
+        panel (get-panel width height img)
+        wr (.getRaster img)]
+    (construct-frame width height panel)
+    (fn []
+      (do
+        (render xstart ystart xsize ysize width height max-iters wr)
+        (.repaint panel)))))
+
+(def my-mandelbrot (mandelbrot -2 -1.25 3 2.5 600 500 50))
+
+(future (my-mandelbrot))
