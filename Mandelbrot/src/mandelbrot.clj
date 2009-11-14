@@ -6,7 +6,7 @@
 (defn mandel [[xcoord ycoord]]
   [(- (* xcoord xcoord) (* ycoord ycoord)) (* 2 xcoord ycoord)])
 
-(defn mandelset [xcoord ycoord]
+(defn mandelformula [xcoord ycoord]
   "Returns an infinite sequence of vectors containing the values of 
   successive iterations of the mandelbrot formula, given a point on
   the complex plane."
@@ -15,22 +15,22 @@
     [xcoord ycoord]))
 
 ;; Colours used to draw the set
-(def grad-colour-a [255, 255, 0])
-(def grad-colour-b [0, 0, 255])
-(def set-colour [0, 0, 0])
+(def *grad-colour-a* [255, 255, 0]) ;yellow
+(def *grad-colour-b* [0, 0, 255]) ;blue
+(def *set-colour* [0, 0, 0]) ;black
 
 (defn grad-colour
   "Returns the colour that is the given fraction of the way between
   the first and second colours given. Returns as a vector of three
   integers between 0 and 255."
-  [col1 col2 frac]
-  (vec (map #(+ (* frac (- %2 %1)) %1) col1 col2)))
+  [colA colB frac]
+  (vec (map #(+ (* frac (- %2 %1)) %1) colA colB)))
 
 (defn iter-colour 
   "Returns the colour needed to paint a point with the given number
   of iterations"
   [num-iters max-iters]
-  (grad-colour grad-colour-a grad-colour-b
+  (grad-colour *grad-colour-a* *grad-colour-b*
     (/ (double num-iters) max-iters)))
 
 (defn mag [[x y]]
@@ -42,9 +42,9 @@
   a gradient is given based on the number of iterations of the mandelbrot set
   that have been evaluated."
   [[xcoord ycoord] max-iters]
-  (let [num-iters (count (take max-iters (take-while #(<= (mag %) 4) (mandelset xcoord ycoord))))]
+  (let [num-iters (count (take max-iters (take-while #(<= (mag %) 4) (mandelformula xcoord ycoord))))]
     (if (= max-iters num-iters)
-      set-colour
+      *set-colour*
       (iter-colour num-iters max-iters))))
 
 (defn get-coord 
@@ -59,15 +59,14 @@
   (for [y (range height) x (range width)]
      [x y]))
 
-
 (defn render [xstart ystart xsize ysize width height max-iters wr]
   (dorun
     (pmap (fn [pixel]
             (let [[x y] pixel]
               (.setPixel wr x y
-              (int-array (coord-colour
-                (get-coord (double x) (double y) xstart ystart xsize ysize width height)
-                max-iters)))))
+                (int-array (coord-colour
+                  (get-coord (double x) (double y) xstart ystart xsize ysize width height)
+                  max-iters)))))
            (get-pixels width height))))
 
 
