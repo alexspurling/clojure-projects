@@ -1,7 +1,6 @@
 (import '(javax.swing JFrame JPanel)
         '(java.awt Color Dimension Graphics)
-        '(java.awt.image BufferedImage)
-        '(java.awt.image WritableRaster))
+        '(java.awt.image BufferedImage WritableRaster))
 
 (defn mandelformula [x0 y0 max-iters]
   "Applies the mandelbrot formula until max-iters iterations
@@ -19,7 +18,7 @@
             n
             (let [new-x (+ x0 (- (* x x) (* y y)))
                   new-y (+ y0 (* (double 2) (* x y)))]
-            (recur new-x new-y (inc n)))))))))
+              (recur new-x new-y (inc n)))))))))
 
 ;; Colours used to draw the set
 (def *grad-colour-a* [255, 255, 0]) ;yellow
@@ -39,6 +38,8 @@
   [num-iters max-iters]
   (grad-colour *grad-colour-a* *grad-colour-b*
     (/ (double num-iters) max-iters)))
+
+(def iter-colour (memoize iter-colour))
 
 (defn coord-colour
   "Returns a colour for which to draw the given coordinate. If the coordinate
@@ -71,7 +72,6 @@
           (coord-colour
             (get-coord (double x) (double y) xstart ystart xsize ysize width height)
             max-iters))))))
-
 
 (defn get-img [width height]
   (BufferedImage. width height (BufferedImage/TYPE_INT_RGB)))
